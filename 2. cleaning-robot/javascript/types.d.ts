@@ -10,3 +10,10 @@ export type RobotApi = {
   getPosition: () => Position;
   getPositionAhead: () => Position;
 };
+
+export type ShortestPath = {
+  steps: number;
+  direction: import("./types.js").Direction;
+};
+
+export type ShortestPathCollection = Map<string, ShortestPath>;
