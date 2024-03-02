@@ -26,7 +26,8 @@ function cleanRooms(api) {
   let maxIterations = 1000; // Maximum number of iterations to prevent infinite loop
 
   while (maxIterations > 0) {
-    const currentPosition = JSON.stringify(api.getPosition());
+    const {x,y} = api.getPosition()
+    const currentPosition = `${x},${y}`;
 
     // Clean the current cell if not visited before
     if (!visited.has(currentPosition)) {
@@ -45,6 +46,8 @@ function cleanRooms(api) {
     api.turnRight();
 
     // If still not possible to move forward, break the loop
+    if (!api.isBarrierAhead()) api.move();
+
     if (api.isBarrierAhead()) break;
 
     maxIterations--; // Decrement the iteration count
