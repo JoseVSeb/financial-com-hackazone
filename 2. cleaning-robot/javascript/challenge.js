@@ -22,76 +22,138 @@ rc.evaluateResult();
  * @param {import("./types.js").RobotApi} api
  */
 function cleanRooms(api) {
-  const visited = new Set(); // Set to keep track of visited positions
-  let maxIterations = 1000; // Maximum number of iterations to prevent infinite loop
+  // Set to keep track of visited positions
+  const visited = new Set();
 
-  while (maxIterations > 0) {
-    const {x,y} = api.getPosition()
-    const currentPosition = `${x},${y}`;
+  const stack = [
+    { position: api.getPosition(), directions: getDefaultDirections() },
+  ];
 
-    // Clean the current cell if not visited before
-    if (!visited.has(currentPosition)) {
-      visited.add(currentPosition);
+  while (stack.length > 0) {
+    const { position: currentPosition, directions } = stack.at(-1);
+
+    // mark visited
+    visited.add(JSON.stringify(currentPosition));
+
+    // no more directions to traverse from here
+    if (directions.length === 0) {
+      stack.pop();
+      if (stack.length === 0) return;
+      
+      turnToPosition(currentPosition, stack.at(-1).position);
+      api.move();
+
+      continue;
     }
 
-    // Move to the next cell if possible
-    if (!api.isBarrierAhead()) api.move();
+    // current direction
+    const currentDirection = directions.pop();
+    turnToDirection(currentDirection);
 
-    // If moving forward is not possible, turn right and try again
-    api.turnRight();
+    const nextPosition = api.getPositionAhead();
 
-    if (!api.isBarrierAhead()) api.move();
+    // if visited, change direction
+    if (visited.has(JSON.stringify(nextPosition))) continue;
 
-    // If moving forward is still not possible, turn right again (effectively turning around)
-    api.turnRight();
+    // if barrier, change direction
+    if (api.isBarrierAhead()) continue;
 
-    // If still not possible to move forward, break the loop
-    if (!api.isBarrierAhead()) api.move();
+    // more forward
+    api.move();
 
-    if (api.isBarrierAhead()) break;
-
-    maxIterations--; // Decrement the iteration count
+    // push to the new position to stack
+    stack.push({ position: nextPosition, directions: getDefaultDirections() });
   }
 
-  //   /** @type {Record<number,Record<number, "x" | ".">>} */
-  //   const map = {};
+  return;
 
-  //   //   {
-  //   //     const currentPosition = api.getPosition();
-  //   //     map[currentPosition.x] = map[currentPosition.x] ?? {};
-  //   //     map[currentPosition.x][currentPosition.y] = ".";
-  //   //     const aheadPosition = api.getPositionAhead();
-  //   //     map[aheadPosition.x] = map[aheadPosition.x] ?? {};
-  //   //     map[aheadPosition.x][aheadPosition.y] = api.isBarrierAhead() ? "x" : ".";
-  //   //   }
-  //   pointUp();
-  //   while (!api.isBarrierAhead()) {
-  //     api.move();
-  //   }
-  //   pointRight();
-  //   while (!api.isBarrierAhead()) {
-  //     api.move();
-  //   }
+  /**
+   * Turn the robot to face a new position given the current position.
+   * This function calculates the direction from the current position to the target position
+   * and then turns the robot accordingly.
+   *
+   * @param {import("./types.js").Position} currentPosition - The current position of the robot.
+   * @param {import("./types.js").Position} targetPosition - The target position to face.
+   */
+  function turnToPosition(currentPosition, targetPosition) {
+    const deltaX = targetPosition.x - currentPosition.x;
+    const deltaY = targetPosition.y - currentPosition.y;
 
-  //   return;
-  //   function pointUp() {
-  //     if (api.getDirection() === Direction.DOWN) api.turnLeft()
-  //     if (api.getDirection() === Direction.RIGHT) api.turnLeft()
-  //     if (api.getDirection() === Direction.LEFT) api.turnRight()
-  //   }
-  //   function pointRight() {
-  //     if (api.getDirection() === Direction.LEFT) api.turnLeft()
-  //     if (api.getDirection() === Direction.UP) api.turnRight()
-  //     if (api.getDirection() === Direction.DOWN) api.turnLeft()
-  //   }
-  //   function pointLeft() {
-  //     if (api.getDirection() === Direction.RIGHT) api.turnLeft()
-  //     if (api.getDirection() === Direction.UP) api.turnLeft()
-  //     if (api.getDirection() === Direction.DOWN) api.turnRight()
-  //   }
-  //   function pointDown() {
-  //     if (api.getDirection() === Direction.UP) api.turnLeft()
-  //     if (api.getDirection() === Direction.LEFT) api.turnLeft()
-  //     if (api.getDirection() === Direction.RIGHT) api.turnRight()
-  //   }
+    if (deltaX === 0 && deltaY === 0) {
+      // The robot is already at the target position
+      return;
+    }
+
+    // Calculate the direction to turn based on deltaX and deltaY
+    let targetDirection;
+    if (deltaX === 0) {
+      // Moving along the y-axis
+      targetDirection = deltaY > 0 ? Direction.DOWN : Direction.UP;
+    } else if (deltaY === 0) {
+      // Moving along the x-axis
+      targetDirection = deltaX > 0 ? Direction.RIGHT : Direction.LEFT;
+    } else {
+      // Diagonal movement (not supported by basic movements like turnLeft/turnRight)
+      throw new Error("Diagonal movement is not supported.");
+    }
+
+    // Turn the robot to face the target direction
+    turnToDirection(targetDirection);
+  }
+
+  /**
+   *
+   * @returns {Direction[]}
+   */
+  function getDefaultDirections() {
+    return [Direction.UP, Direction.RIGHT, Direction.DOWN, Direction.LEFT];
+  }
+
+  /**
+   *
+   * @param {import("./types.js").Direction} direction
+   */
+  function turnToDirection(direction) {
+    // TODO: can be optimized
+    while (direction !== api.getDirection()) {
+      api.turnRight();
+    }
+  }
+
+  /**
+   * Get the next position based on the current position and direction
+   *
+   * @param {import("./types.js").Position} position
+   * @param {import("./types.js").Direction} direction
+   * @returns {import("./types.js").Position}
+   */
+  function getNextPosition(position, direction) {
+    let { x, y } = position;
+    switch (direction) {
+      case Direction.NORTH:
+        y++;
+        break;
+      case Direction.EAST:
+        x++;
+        break;
+      case Direction.SOUTH:
+        y--;
+        break;
+      case Direction.WEST:
+        x--;
+        break;
+    }
+    return { x, y };
+  }
+
+  /**
+   * Move the robot back to the previous position
+   */
+  function goBack() {
+    api.turnLeft();
+    api.turnLeft();
+    api.move();
+    api.turnRight();
+    api.turnRight();
+  }
 }
