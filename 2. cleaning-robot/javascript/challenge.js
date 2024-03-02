@@ -135,42 +135,6 @@ function cleanRooms(api) {
     }
   }
 
-  /**
-   * Get the next position based on the current position and direction
-   *
-   * @param {import("./types.js").Position} position
-   * @param {import("./types.js").Direction} direction
-   * @returns {import("./types.js").Position}
-   */
-  function getNextPosition(position, direction) {
-    let { x, y } = position;
-    switch (direction) {
-      case Direction.NORTH:
-        y++;
-        break;
-      case Direction.EAST:
-        x++;
-        break;
-      case Direction.SOUTH:
-        y--;
-        break;
-      case Direction.WEST:
-        x--;
-        break;
-    }
-    return { x, y };
-  }
-
-  /**
-   * Move the robot back to the previous position
-   */
-  function goBack() {
-    api.turnLeft();
-    api.turnLeft();
-    api.move();
-    api.turnRight();
-    api.turnRight();
-  }
 }
 
 /**
